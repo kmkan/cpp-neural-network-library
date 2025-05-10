@@ -1,5 +1,7 @@
 #include <iostream>
 #include <stdexcept>
+#include <algorithm>
+#include <cmath>
 
 class Matrix {
 public:
@@ -34,14 +36,6 @@ public:
     ~Matrix() {
         delete[] matrix;
     }
-    void display() const {
-        for (int i = 0; i < row; i++) {
-            for (int j = 0; j < col; j++) {
-                printf("%.2f ", matrix[i * col + j]);
-            }
-            printf("\n");
-        }
-    }
     int getRow() {
         return row;
     }
@@ -60,6 +54,35 @@ public:
         }
         matrix[_row * col + _col] = entry;
     }
+    void display() const {
+        for (int i = 0; i < row; i++) {
+            for (int j = 0; j < col; j++) {
+                printf("%.2f ", matrix[i * col + j]);
+            }
+            printf("\n");
+        }
+    }
+    Matrix multiply(Matrix& m) const {
+        if (col != m.getRow()) {
+            throw std::invalid_argument("Dimensions of matrices not compatible.\n");
+        }
+
+        Matrix product = Matrix(row, m.getCol());
+        for (int i = 0; i < row; i++) {
+            for (int j = 0; j < m.getCol(); j++) { 
+                double vectorProd = 0;
+                for (int k = 0; k < col; k++) {
+                    vectorProd += matrix[i * col + k] * m.matrix[k * m.getCol() + j];
+                }
+                product.matrix[i * m.getCol() + j] = vectorProd;
+            }
+        }
+
+        return product;
+    }
+    Matrix operator*(Matrix& m) const {
+    return this->multiply(m);  
+    }
 private: 
     int row;
     int col;
@@ -69,12 +92,14 @@ private:
     }
 };
 
+double sigmoid(double x) {
+    return 1 / (1 + std::exp(-x));
+}
 
+double relu(double x) {
+    return x > 0 ? x : 0;
+}
 
 int main() {
-    Matrix newMatrix = Matrix(3, 3);
-    newMatrix.display();
-    Matrix newMatrixTwo = Matrix(4, 5, 1);
-    newMatrixTwo.display();
     return 0;
 }
