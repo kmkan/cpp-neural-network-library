@@ -96,8 +96,17 @@ double sigmoid(double x) {
     return 1 / (1 + std::exp(-x));
 }
 
+double sigmoidPrime(double x) {
+    double s = sigmoid(x);
+    return s * (1 - s);
+}
+
 double relu(double x) {
     return x > 0 ? x : 0;
+}
+
+double reluPrime(double x) {
+    return x <= 0 ? 0 : 1;
 }
 
 int main() {
