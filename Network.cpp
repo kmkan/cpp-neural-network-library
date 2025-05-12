@@ -11,7 +11,7 @@ Network::Network(const std::vector<int>& layerSizes, const std::vector<std::stri
     }
 }
 
-Matrix Network::predict(const Matrix& input) {
+Matrix Network::predict(Matrix& input) {
     Matrix output = input;
     for (auto& layer : layers) {
         output = layer.forward(output);
