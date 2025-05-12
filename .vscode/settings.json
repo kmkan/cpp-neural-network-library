@@ -1,6 +1,10 @@
 {
     "files.associations": {
-        "stdexcept": "cpp",
+        "limits": "cpp",
+        "utility": "cpp",
+        "xutility": "cpp",
+        "cmath": "cpp",
+        "xstring": "cpp",
         "vector": "cpp"
     }
 }
