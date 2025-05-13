@@ -32,6 +32,7 @@ public:
     Matrix applyFunction(double (*f)(double x));
     Matrix add(const Matrix& m) const;
     Matrix multiply(const Matrix& m) const;
+    Matrix transpose() const;
 
     // Operator Overloads
     Matrix operator+(const Matrix& m) const;

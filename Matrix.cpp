@@ -103,6 +103,16 @@ Matrix Matrix::multiply(const Matrix& m) const {
     return product;
 }
 
+Matrix Matrix::transpose() const {
+    Matrix result(col, row);
+    for (int i = 0; i < row; ++i) {
+        for (int j = 0; j < col; ++j) {
+            result.setEntry(j, i, getEntry(i, j));
+        }
+    }
+    return result;
+}
+
 Matrix Matrix::operator+(const Matrix& m) const {
     return this->add(m);
 }
