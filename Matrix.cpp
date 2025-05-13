@@ -37,7 +37,6 @@ double Matrix::getEntry(int _r, int _c) const {
     return matrix_data[_r * col + _c]; 
 }
 
-// Setter
 void Matrix::setEntry(int _r, int _c, double entry) {
     if (!isValidIndex(_r, _c)) {
         throw std::out_of_range("Matrix::setEntry: Index (" + std::to_string(_r) + "," + std::to_string(_c) + ") out of bounds for " + std::to_string(row) + "x" + std::to_string(col) + " matrix.");
@@ -45,7 +44,6 @@ void Matrix::setEntry(int _r, int _c, double entry) {
     matrix_data[_r * col + _c] = entry; 
 }
 
-// Operations
 void Matrix::display() const {
     if (matrix_data.empty() && (row > 0 || col > 0) ) { 
          std::cout << "Matrix is uninitialized or has zero dimensions but non-zero row/col members." << std::endl;
