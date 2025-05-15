@@ -1,13 +1,13 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <stdexcept> // For std::exception
-#include <cstdlib>   // For srand, rand
-#include <ctime>     // For time
-#include <iomanip>   // For std::fixed, std::setprecision
-#include <numeric>   // For std::iota for shuffling
-#include <algorithm> // For std::shuffle
-#include <random>    // For std::default_random_engine for shuffling
+#include <stdexcept> 
+#include <cstdlib> 
+#include <ctime>    
+#include <iomanip>   
+#include <numeric>   
+#include <algorithm> 
+#include <random>    
 
 #include "Matrix.h"
 #include "Layer.h"
