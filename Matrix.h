@@ -2,15 +2,15 @@
 #define MATRIX_H
 
 #include <vector>
-#include <string> 
-#include <iostream> 
-#include <iomanip>  
+#include <string>
+#include <iostream>
+#include <iomanip>
 
 class Matrix {
 private:
     int row;
     int col;
-    std::vector<double> matrix_data; 
+    std::vector<double> matrix_data;
 
     bool isValidIndex(int _row, int _col) const;
 
@@ -31,12 +31,16 @@ public:
     void display() const;
     Matrix applyFunction(double (*f)(double x));
     Matrix add(const Matrix& m) const;
+    Matrix subtract(const Matrix& m) const; 
     Matrix multiply(const Matrix& m) const;
+    Matrix multiplyElements(const Matrix& m) const; 
+    Matrix multiplyScalar(double scalar) const;    
     Matrix transpose() const;
 
     // Operator Overloads
     Matrix operator+(const Matrix& m) const;
+    Matrix operator-(const Matrix& m) const; 
     Matrix operator*(const Matrix& m) const;
 };
 
-#endif // MATRIX_H
+#endif 
