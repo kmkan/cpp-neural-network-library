@@ -2,42 +2,35 @@
 #include <vector>
 #include <string>
 #include <stdexcept> 
-#include <cstdlib> 
-#include <ctime>    
+#include <cstdlib>   
+#include <ctime>     
 #include <iomanip>   
 #include <numeric>   
 #include <algorithm> 
 #include <random>    
 
 #include "Matrix.h"
-#include "Layer.h"
 #include "Network.h"
+#include "MNISTLoader.h" // Include the MNIST loader
 
-// Helper function to print predictions
-void print_predictions(Network& net, const std::vector<Matrix>& inputs, const std::vector<Matrix>& targets) {
-    std::cout << std::fixed << std::setprecision(5);
-    for (size_t i = 0; i < inputs.size(); ++i) {
-        Matrix input_sample = inputs[i]; 
-        Matrix predicted = net.predict(input_sample);
-        std::cout << "Input: [";
-        for (int r = 0; r < inputs[i].getRow(); ++r) {
-            std::cout << inputs[i].getEntry(r, 0) << (r == inputs[i].getRow() - 1 ? "" : ", ");
+// Helper to get a prediction for a single image (returns predicted digit)
+int get_prediction_digit(Network& net, Matrix& image_input) {
+    Matrix prediction_vector = net.predict(image_input);
+    int max_idx = 0;
+    double max_val = -1.0;
+    for (int i = 0; i < prediction_vector.getRow(); ++i) {
+        if (prediction_vector.getEntry(i, 0) > max_val) {
+            max_val = prediction_vector.getEntry(i, 0);
+            max_idx = i;
         }
-        std::cout << "] -> Predicted: [";
-        for (int r = 0; r < predicted.getRow(); ++r) {
-            std::cout << predicted.getEntry(r, 0) << (r == predicted.getRow() - 1 ? "" : ", ");
-        }
-        std::cout << "], Target: [";
-        for (int r = 0; r < targets[i].getRow(); ++r) {
-            std::cout << targets[i].getEntry(r, 0) << (r == targets[i].getRow() - 1 ? "" : ", ");
-        }
-        std::cout << "]" << std::endl;
     }
+    return max_idx;
 }
 
 
 int main() {
-    bool use_fixed_seed = false; 
+    // --- Configuration ---
+    bool use_fixed_seed = true; 
     unsigned int seed_value = 42; 
 
     if (use_fixed_seed) {
@@ -48,78 +41,149 @@ int main() {
         srand(dynamic_seed);
         std::cout << "Using dynamic random seed: " << dynamic_seed << std::endl;
     }
-
-    // Test Case: XOR Problem 
-    std::vector<Matrix> train_inputs;
-    std::vector<Matrix> train_targets;
-
-    Matrix x1(2, 1); x1.setEntry(0, 0, 0.0); x1.setEntry(1, 0, 0.0);
-    Matrix y1(1, 1); y1.setEntry(0, 0, 0.0);
-    train_inputs.push_back(x1); train_targets.push_back(y1);
-
-    Matrix x2(2, 1); x2.setEntry(0, 0, 0.0); x2.setEntry(1, 0, 1.0);
-    Matrix y2(1, 1); y2.setEntry(0, 0, 1.0);
-    train_inputs.push_back(x2); train_targets.push_back(y2);
-
-    Matrix x3(2, 1); x3.setEntry(0, 0, 1.0); x3.setEntry(1, 0, 0.0);
-    Matrix y3(1, 1); y3.setEntry(0, 0, 1.0);
-    train_inputs.push_back(x3); train_targets.push_back(y3);
-
-    Matrix x4(2, 1); x4.setEntry(0, 0, 1.0); x4.setEntry(1, 0, 1.0);
-    Matrix y4(1, 1); y4.setEntry(0, 0, 0.0);
-    train_inputs.push_back(x4); train_targets.push_back(y4);
-
-    std::vector<int> layer_sizes = {2, 3, 1}; 
-    std::vector<std::string> activations = {"relu", "sigmoid"}; 
-    
-    double learning_rate = 0.1;
-    int epochs = 10000; 
-
-    std::vector<size_t> indices(train_inputs.size());
-    std::iota(indices.begin(), indices.end(), 0); 
     std::default_random_engine rng(use_fixed_seed ? seed_value : static_cast<unsigned int>(time(0)));
 
+    // --- Load MNIST Data ---
+    std::string train_images_path = "train-images-idx3-ubyte";
+    std::string train_labels_path = "train-labels-idx1-ubyte";
+    std::string test_images_path = "t10k-images-idx3-ubyte";
+    std::string test_labels_path = "t10k-labels-idx1-ubyte";
+
+    // Load a small subset for initial testing to speed things up
+    // For full training, set max_items to 0 or a larger number (e.g., 60000 for train, 10000 for test)
+    // int items_to_load_train = 1000; // Small subset for quick test
+    // int items_to_load_test = 200;   // Small subset for quick test
+    int items_to_load_train = 60000; // Full training set
+    int items_to_load_test = 10000;  // Full test set
+
+
+    MNISTDataset training_data;
+    MNISTDataset test_data;
 
     try {
-        Network xor_net(layer_sizes, activations);
+        std::cout << "Loading Training Data..." << std::endl;
+        training_data = MNISTLoader::load(train_images_path, train_labels_path, items_to_load_train);
+        std::cout << "Loading Test Data..." << std::endl;
+        test_data = MNISTLoader::load(test_images_path, test_labels_path, items_to_load_test);
+    } catch (const std::exception& e) {
+        std::cerr << "Error loading MNIST data: " << e.what() << std::endl;
+        return 1;
+    }
 
-        std::cout << "--- Predictions Before Training ---" << std::endl;
-        print_predictions(xor_net, train_inputs, train_targets);
-        std::cout << std::endl;
+    // --- Network Configuration for MNIST ---
+    // Input: 28x28 = 784 pixels
+    // Output: 10 digits (0-9), one-hot encoded
+    // Hidden layer(s): e.g., one hidden layer with 100 neurons
+    std::vector<int> layer_sizes = {784, 100, 10}; // Input -> Hidden -> Output
+    std::vector<std::string> activations = {"relu", "sigmoid"}; // ReLU for hidden, Sigmoid for output
 
-        std::cout << "--- Training Started ---" << std::endl;
+    double learning_rate = 0.1;
+    int epochs = 10; // Start with a few epochs
+    int batch_size = 32; 
+
+    try {
+        Network mnist_net(layer_sizes, activations);
+
+        std::cout << "\n--- Training Started (MNIST) ---" << std::endl;
         std::cout << "Network: Input(" << layer_sizes[0] << ")";
         for(size_t i=0; i < activations.size(); ++i) {
             std::cout << " -> " << activations[i] << "(" << layer_sizes[i+1] << ")";
         }
         std::cout << std::endl;
-        std::cout << "Learning Rate: " << learning_rate << ", Epochs: " << epochs << std::endl;
+        std::cout << "Learning Rate: " << learning_rate 
+                  << ", Epochs: " << epochs 
+                  << ", Batch Size: " << batch_size << std::endl;
+        std::cout << "Training on " << training_data.number_of_items << " samples." << std::endl;
 
+
+        std::vector<size_t> training_indices(training_data.number_of_items);
+        std::iota(training_indices.begin(), training_indices.end(), 0);
 
         for (int epoch = 0; epoch < epochs; ++epoch) {
-            double current_epoch_total_loss = 0.0;
+            std::shuffle(training_indices.begin(), training_indices.end(), rng); // Shuffle data
+            
+            double epoch_total_loss = 0.0;
+            int num_batches = 0;
 
-            std::shuffle(indices.begin(), indices.end(), rng);
+            for (size_t i = 0; i < training_data.number_of_items; i += batch_size) {
+                std::vector<Matrix> batch_inputs;
+                std::vector<Matrix> batch_targets;
+                
+                size_t current_batch_end = std::min(i + batch_size, static_cast<size_t>(training_data.number_of_items));
+                for (size_t j = i; j < current_batch_end; ++j) {
+                    batch_inputs.push_back(training_data.images[training_indices[j]]);
+                    batch_targets.push_back(training_data.labels[training_indices[j]]);
+                }
 
-            for (size_t i = 0; i < train_inputs.size(); ++i) {
-                size_t current_idx = indices[i];
-                double sample_loss = xor_net.train_on_sample(train_inputs[current_idx], train_targets[current_idx], learning_rate);
-                current_epoch_total_loss += sample_loss;
+                if (batch_inputs.empty()) continue;
+
+                double batch_loss = mnist_net.train_on_batch(batch_inputs, batch_targets, learning_rate);
+                epoch_total_loss += batch_loss * batch_inputs.size(); // Weighted by actual batch size
+                num_batches++;
+
+                // Optional: Print progress within an epoch
+                // if (num_batches % 10 == 0) {
+                //     std::cout << "Epoch " << epoch << ", Batch " << num_batches << ", Avg Batch Loss: " << batch_loss << std::endl;
+                // }
             }
 
-            if ((epoch % (epochs / 20 == 0 ? 1 : epochs / 20) == 0) || epoch == epochs - 1) {
-                std::cout << "Epoch " << std::setw(5) << epoch << "/" << epochs - 1
-                          << ", Average Loss: " << std::fixed << std::setprecision(8)
-                          << (current_epoch_total_loss / train_inputs.size()) << std::endl;
+            double average_epoch_loss = epoch_total_loss / training_data.number_of_items;
+            std::cout << "Epoch " << std::setw(3) << epoch << "/" << epochs - 1
+                      << ", Average Training Loss: " << std::fixed << std::setprecision(8)
+                      << average_epoch_loss << std::endl;
+
+            // Optional: Evaluate on a subset of test data periodically
+            if ((epoch % 2 == 0 || epoch == epochs -1) && !test_data.images.empty()) {
+                int correct_predictions = 0;
+                for(size_t k=0; k < test_data.images.size(); ++k) {
+                    int predicted_digit = get_prediction_digit(mnist_net, test_data.images[k]);
+                    int actual_digit = 0; // Find actual digit from one-hot vector
+                    for(int l=0; l<test_data.labels[k].getRow(); ++l) {
+                        if(test_data.labels[k].getEntry(l,0) == 1.0) {
+                            actual_digit = l;
+                            break;
+                        }
+                    }
+                    if (predicted_digit == actual_digit) {
+                        correct_predictions++;
+                    }
+                }
+                double accuracy = static_cast<double>(correct_predictions) / test_data.images.size();
+                std::cout << "  Test Accuracy after Epoch " << epoch << ": " 
+                          << std::fixed << std::setprecision(4) << accuracy * 100.0 << "%" 
+                          << " (" << correct_predictions << "/" << test_data.images.size() << ")" << std::endl;
             }
         }
         std::cout << "--- Training Finished ---" << std::endl << std::endl;
 
-        std::cout << "--- Predictions After Training ---" << std::endl;
-        print_predictions(xor_net, train_inputs, train_targets);
+        // Final evaluation (optional, more detailed)
+        std::cout << "--- Final Test Set Evaluation ---" << std::endl;
+        if (!test_data.images.empty()) {
+            int correct_predictions = 0;
+            for(size_t k=0; k < test_data.images.size(); ++k) {
+                int predicted_digit = get_prediction_digit(mnist_net, test_data.images[k]);
+                int actual_digit = 0;
+                for(int l=0; l<test_data.labels[k].getRow(); ++l) {
+                    if(test_data.labels[k].getEntry(l,0) == 1.0) {
+                        actual_digit = l;
+                        break;
+                    }
+                }
+                if (predicted_digit == actual_digit) {
+                    correct_predictions++;
+                }
+                if (k < 10) { // Print first few test predictions
+                    std::cout << "Test Sample " << k << ": Predicted=" << predicted_digit << ", Actual=" << actual_digit << std::endl;
+                }
+            }
+            double accuracy = static_cast<double>(correct_predictions) / test_data.images.size();
+            std::cout << "Final Test Accuracy: " << accuracy * 100.0 << "%" 
+                      << " (" << correct_predictions << "/" << test_data.images.size() << ")" << std::endl;
+        }
+
 
     } catch (const std::exception& e) {
-        std::cerr << "An exception occurred: " << e.what() << std::endl;
+        std::cerr << "An exception occurred during network training/evaluation: " << e.what() << std::endl;
         return 1;
     }
 

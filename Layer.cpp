@@ -1,13 +1,11 @@
 #include "Layer.h"
-#include <cmath>
+#include <cmath>      
 #include <cstdlib>    
-#include <iostream>
+#include <iostream>   
 #include <stdexcept>
 #include <utility>    
 
-double randomDouble(double min, double max) {
-    if (min > max) {
-    }
+double randomDouble_layer(double min, double max) { 
     return min + (static_cast<double>(rand()) / RAND_MAX) * (max - min);
 }
 
@@ -17,27 +15,53 @@ Layer::Layer(int inputSize, int outputSize, std::string _activationName)
       activationName(std::move(_activationName)),
       last_input(inputSize, 1), 
       last_z(outputSize, 1),    
-      grad_weights(outputSize, inputSize),
-      grad_biases(outputSize, 1)
+      grad_weights(outputSize, inputSize), 
+      grad_biases(outputSize, 1),          
+      delta_weights(outputSize, inputSize, 0.0), 
+      delta_biases(outputSize, 1, 0.0)
 {
     if (inputSize <= 0 || outputSize <= 0) {
         throw std::invalid_argument("Layer input and output sizes must be positive.");
     }
 
     double limit = std::sqrt(6.0 / (static_cast<double>(inputSize) + static_cast<double>(outputSize)));
-
     for (int i = 0; i < weights.getRow(); ++i) {
         for (int j = 0; j < weights.getCol(); ++j) {
-            weights.setEntry(i, j, randomDouble(-limit, limit));
+            weights.setEntry(i, j, randomDouble_layer(-limit, limit));
         }
     }
-
     for (int i = 0; i < biases.getRow(); ++i) {
         for (int j = 0; j < biases.getCol(); ++j) {
-            biases.setEntry(i, j, randomDouble(-0.1, 0.1)); 
+            biases.setEntry(i, j, 0.0); 
         }
     }
 }
+
+void Layer::zero_deltas() {
+    
+    this->delta_weights = Matrix(weights.getRow(), weights.getCol(), 0.0);
+    this->delta_biases = Matrix(biases.getRow(), biases.getCol(), 0.0);
+}
+
+void Layer::accumulate_gradients() {
+    
+    this->delta_weights = this->delta_weights.add(this->grad_weights);
+    this->delta_biases = this->delta_biases.add(this->grad_biases);
+}
+
+void Layer::update_parameters_from_deltas(double learning_rate, int batch_size) {
+    if (batch_size <= 0) {
+        throw std::invalid_argument("Batch size must be positive for updating parameters.");
+    }
+    double scale = learning_rate / static_cast<double>(batch_size);
+
+    Matrix scaled_delta_weights = this->delta_weights.multiplyScalar(scale);
+    this->weights = this->weights.subtract(scaled_delta_weights);
+
+    Matrix scaled_delta_biases = this->delta_biases.multiplyScalar(scale);
+    this->biases = this->biases.subtract(scaled_delta_biases);
+}
+
 
 Matrix Layer::forward(Matrix& input) {
     if (input.getRow() != last_input.getRow() || input.getCol() != last_input.getCol()) {
@@ -60,78 +84,37 @@ Matrix Layer::forward(Matrix& input) {
             this->last_z.setEntry(r,c, z.getEntry(r,c));
         }
     }
-
-    Matrix activated = activate(z); 
-    return activated;
+    return activate(z);
 }
 
 Matrix Layer::activate(Matrix& z) const {
-    if (activationName == "relu") {
-        return z.applyFunction(Layer::relu);
-    }
-    if (activationName == "sigmoid") {
-        return z.applyFunction(Layer::sigmoid);
-    }
+    if (activationName == "relu") return z.applyFunction(Layer::relu);
+    if (activationName == "sigmoid") return z.applyFunction(Layer::sigmoid);
     throw std::invalid_argument("Unsupported activation function: " + activationName);
 }
 
 Matrix Layer::activatePrime(Matrix& z_values) const {
-    if (activationName == "relu") {
-        return z_values.applyFunction(Layer::reluPrime);
-    }
-    if (activationName == "sigmoid") {
-        return z_values.applyFunction(Layer::sigmoidPrime);
-    }
+    if (activationName == "relu") return z_values.applyFunction(Layer::reluPrime);
+    if (activationName == "sigmoid") return z_values.applyFunction(Layer::sigmoidPrime);
     throw std::invalid_argument("Unsupported activation function for derivative: " + activationName);
 }
 
 Matrix Layer::backward(const Matrix& d_cost_d_activation) {
+
     Matrix activation_grad = activatePrime(this->last_z);
     Matrix d_z = d_cost_d_activation.multiplyElements(activation_grad); 
 
     Matrix last_input_transposed = this->last_input.transpose();
-    this->grad_weights = d_z.multiply(last_input_transposed);
+    this->grad_weights = d_z.multiply(last_input_transposed); 
     
-    if (d_z.getCol() > 1) { 
-        this->grad_biases = Matrix(d_z.getRow(), 1, 0.0); 
-        for (int r = 0; r < d_z.getRow(); ++r) {
-            double sum_for_row = 0.0;
-            for (int c = 0; c < d_z.getCol(); ++c) {
-                sum_for_row += d_z.getEntry(r, c);
-            }
-            this->grad_biases.setEntry(r, 0, sum_for_row / d_z.getCol()); 
-        }
-    } else { 
-        this->grad_biases = d_z; 
-    }
-
+    this->grad_biases = d_z; 
 
     Matrix weights_transposed = this->weights.transpose();
-    Matrix d_activation_prev = weights_transposed.multiply(d_z);
-
-    return d_activation_prev;
+    return weights_transposed.multiply(d_z); 
 }
 
-double Layer::sigmoid(double x) {
-    return 1.0 / (1.0 + std::exp(-x));
-}
-
-double Layer::sigmoidPrime(double x) {
-    double s = Layer::sigmoid(x);
-    return s * (1.0 - s);
-}
-
-double Layer::relu(double x) {
-    return x > 0 ? x : 0.0;
-}
-
-double Layer::reluPrime(double x) {
-    return x <= 0 ? 0.0 : 1.0;
-}
-
-void Layer::printWeights() const {
-    std::cout << "Layer Weights (" << weights.getRow() << "x" << weights.getCol() << "):\n";
-    weights.display();
-    std::cout << "Layer Biases (" << biases.getRow() << "x" << biases.getCol() << "):\n";
-    biases.display();
-}
+double Layer::sigmoid(double x) { return 1.0 / (1.0 + std::exp(-x)); }
+double Layer::sigmoidPrime(double x) { double s = Layer::sigmoid(x); return s * (1.0 - s); }
+double Layer::relu(double x) { return x > 0 ? x : 0.0; }
+double Layer::reluPrime(double x) { return x <= 0 ? 0.0 : 1.0; }
+void Layer::printWeights() const { /* ... */ }

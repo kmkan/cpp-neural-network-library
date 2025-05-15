@@ -10,24 +10,22 @@ class Network {
 public:
     Network(const std::vector<int>& layerSizes, const std::vector<std::string>& activations);
 
-    // Perform a forward pass and return the output
     Matrix predict(Matrix& input);
 
-    // Loss function and its derivative
     double meanSquaredError(const Matrix& predicted, const Matrix& actual) const;
     Matrix meanSquaredErrorDerivative(const Matrix& predicted, const Matrix& actual) const;
 
-    // Backpropagation
-    void backpropagate(const Matrix& output_error_gradient); // Takes dL/dOutput_Network
+    void backpropagate_sample(const Matrix& output_error_gradient); 
     
-    // Parameter update
-    void updateParameters(double learningRate);
-
-    // Train the network on a single input-target sample and return the loss for that sample
-    double train_on_sample(Matrix& input, Matrix& target, double learningRate);
-
+    double train_on_batch(const std::vector<Matrix>& batch_inputs, 
+                          const std::vector<Matrix>& batch_targets, 
+                          double learningRate);
 private:
-    std::vector<Layer> layers; // Layers in the neural network
+    void zero_all_layer_deltas();
+    void accumulate_all_layer_gradients();
+    void update_all_layer_parameters(double learning_rate, int batch_size);
+
+    std::vector<Layer> layers; 
 };
 
-#endif  
+#endif
