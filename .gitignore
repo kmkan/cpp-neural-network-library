@@ -1,0 +1,15 @@
+*.o
+obj/*.o
+nn_cuda_test
+train-images-idx3-ubyte
+train-labels-idx1-ubyte
+t10k-images-idx3-ubyte
+t10k-labels-idx1-ubyte
+t10k-images-idx3-ubyte
+.vscode/
+*.suo
+*.user
+*.sln
+*.vcxproj
+*.vcxproj.filters
+Makefile 
