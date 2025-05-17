@@ -12,4 +12,3 @@ t10k-images-idx3-ubyte
 *.sln
 *.vcxproj
 *.vcxproj.filters
-Makefile 
